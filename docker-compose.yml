@@ -1,0 +1,104 @@
+# PocketHost — self-hosted multi-tenant PocketBase platform (Coolify dockercompose build pack)
+#
+# One container runs the whole stack: mothership control plane (:8090), edge daemon
+# (:3000, spawns one PocketBase container per instance) and the dashboard (:8080).
+# Routing is published as Traefik labels below plus per-instance routers written by
+# the stack itself into Traefik's watched dynamic directory.
+#
+# Host mounts are mandatory:
+#   /data/pockethost        instance data + PocketBase binaries + instance templates.
+#                           MUST be the same absolute path on the host: the host docker
+#                           daemon resolves these paths when starting instance containers.
+#   /var/run/docker.sock    instances are sibling containers on the host daemon
+#   /data/coolify/proxy/dynamic   one HTTPS router per instance (per-instance certs)
+
+name: pockethost
+
+services:
+  pockethost:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+      args:
+        PUBLIC_APEX_DOMAIN: 5oyoufxtiwypemsxvsca58rs.213.47.80.26.sslip.io
+        PUBLIC_APP_URL: https://app.5oyoufxtiwypemsxvsca58rs.213.47.80.26.sslip.io
+        PUBLIC_MOTHERSHIP_URL: https://pockethost-central.5oyoufxtiwypemsxvsca58rs.213.47.80.26.sslip.io
+        PUBLIC_HTTP_PROTOCOL: "https:"
+        PUBLIC_DEBUG: "false"
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+
+      # Platform identity
+      APEX_DOMAIN: 5oyoufxtiwypemsxvsca58rs.213.47.80.26.sslip.io
+      APP_URL: https://app.5oyoufxtiwypemsxvsca58rs.213.47.80.26.sslip.io
+      HTTP_PROTOCOL: "https:"
+      MOTHERSHIP_NAME: pockethost-central
+      # In-stack address of the control plane (never leaves the container).
+      MOTHERSHIP_URL: http://127.0.0.1:8090
+      PH_EDGE_ID: coolify-z370n
+
+      # Ports
+      MOTHERSHIP_PORT: "8090"
+      DAEMON_PORT: "3000"
+      DASHBOARD_PORT: "8080"
+
+      # Superadmin of the mothership control plane. The edge daemon authenticates
+      # with these credentials and creates the first superuser when none exists.
+      MOTHERSHIP_ADMIN_USERNAME: webboxes.com@gmail.com
+      MOTHERSHIP_ADMIN_PASSWORD: ${SERVICE_PASSWORD_MOTHERSHIP:-please-set-me}
+      PH_SECRET: ${SERVICE_PASSWORD_PHSECRET:-please-set-me}
+
+      # Instances are spawned on the host daemon and reached through the docker
+      # gateway; PocketBase version catalog for new instances.
+      DOCKER_CONTAINER_HOST: host.docker.internal
+      DOCKER_INSTANCE_IMAGE_NAME: benallfree/pockethost-instance
+      PH_ALLOWED_POCKETBASE_SEMVER: "0.39.*"
+
+      # Shared data root (host bind mount, same path inside and outside)
+      PH_HOME: /data/pockethost
+      DATA_ROOT: /data/pockethost/data
+      # Instance templates must be resolvable by the HOST daemon -> copied into the
+      # shared mount at boot by docker/entrypoint.sh
+      PH_INSTANCE_APP_ROOT: /data/pockethost/instance-app
+
+      PH_PREFETCH_VERSIONS: "true"
+      PH_TRAEFIK_SYNC: "true"
+      TRAEFIK_DYNAMIC_DIR: /traefik-dynamic
+      TRAEFIK_DYNAMIC_FILE: pockethost.yaml
+    volumes:
+      - /data/pockethost:/data/pockethost
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /data/coolify/proxy/dynamic:/traefik-dynamic
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8090/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 120s
+    labels:
+      - traefik.enable=true
+
+      # Dashboard (control panel)
+      - traefik.http.routers.ph-app-http.entryPoints=http
+      - traefik.http.routers.ph-app-http.rule=Host(`app.5oyoufxtiwypemsxvsca58rs.213.47.80.26.sslip.io`)
+      - traefik.http.routers.ph-app-http.service=ph-app
+      - traefik.http.routers.ph-app-http.middlewares=redirect-to-https
+      - traefik.http.routers.ph-app-https.entryPoints=https
+      - traefik.http.routers.ph-app-https.rule=Host(`app.5oyoufxtiwypemsxvsca58rs.213.47.80.26.sslip.io`)
+      - traefik.http.routers.ph-app-https.tls.certresolver=letsencrypt
+      - traefik.http.routers.ph-app-https.service=ph-app
+      - traefik.http.services.ph-app.loadbalancer.server.port=8080
+
+      # Mothership control plane (PocketBase admin UI at /_/)
+      - traefik.http.routers.ph-central-http.entryPoints=http
+      - traefik.http.routers.ph-central-http.rule=Host(`pockethost-central.5oyoufxtiwypemsxvsca58rs.213.47.80.26.sslip.io`)
+      - traefik.http.routers.ph-central-http.service=ph-central
+      - traefik.http.routers.ph-central-http.middlewares=redirect-to-https
+      - traefik.http.routers.ph-central-https.entryPoints=https
+      - traefik.http.routers.ph-central-https.rule=Host(`pockethost-central.5oyoufxtiwypemsxvsca58rs.213.47.80.26.sslip.io`)
+      - traefik.http.routers.ph-central-https.tls.certresolver=letsencrypt
+      - traefik.http.routers.ph-central-https.service=ph-central
+      - traefik.http.services.ph-central.loadbalancer.server.port=8090
