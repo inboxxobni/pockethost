@@ -1,97 +1,125 @@
 /// <reference path="../src/types/types.d.ts" />
+// Ported to the PocketBase >= 0.23 JSVM API. The original used the legacy
+// `Dao` / `new Collection({ schema: [...] })` / `options` shape, which the
+// current PocketBase binary cannot execute, so a fresh mothership database
+// could never be built from the migration chain.
 migrate(
-  (db) => {
+  (app) => {
     const collection = new Collection({
       id: 'n4sshkeys9v1k2m',
-      created: '2026-06-13 12:00:00.000Z',
-      updated: '2026-06-13 12:00:00.000Z',
       name: 'ssh_keys',
       type: 'base',
       system: false,
-      schema: [
+      fields: [
         {
-          system: false,
+          autogeneratePattern: '[a-z0-9]{15}',
+          hidden: false,
+          id: 'text3208210256',
+          max: 15,
+          min: 15,
+          name: 'id',
+          pattern: '^[a-z0-9]+$',
+          presentable: false,
+          primaryKey: true,
+          required: true,
+          system: true,
+          type: 'text',
+        },
+        {
+          hidden: false,
           id: 'skuser01',
           name: 'user',
           type: 'relation',
           required: true,
           presentable: false,
-          unique: false,
-          options: {
-            collectionId: 'systemprofiles0',
-            cascadeDelete: true,
-            minSelect: null,
-            maxSelect: 1,
-            displayFields: ['email'],
-          },
+          system: false,
+          collectionId: 'systemprofiles0',
+          cascadeDelete: true,
+          minSelect: null,
+          maxSelect: 1,
+          displayFields: ['email'],
         },
         {
-          system: false,
+          autogeneratePattern: '',
+          hidden: false,
           id: 'sklabel1',
+          max: 100,
+          min: 1,
           name: 'label',
-          type: 'text',
-          required: true,
+          pattern: '',
           presentable: true,
-          unique: false,
-          options: {
-            min: 1,
-            max: 100,
-            pattern: '',
-          },
+          required: true,
+          system: false,
+          type: 'text',
         },
         {
-          system: false,
+          autogeneratePattern: '',
+          hidden: false,
           id: 'skpubkey',
+          max: 500,
+          min: 40,
           name: 'public_key',
-          type: 'text',
-          required: true,
+          pattern: '^ssh-ed25519 ',
           presentable: false,
-          unique: false,
-          options: {
-            min: 40,
-            max: 500,
-            pattern: '^ssh-ed25519 ',
-          },
+          required: true,
+          system: false,
+          type: 'text',
         },
         {
-          system: false,
+          autogeneratePattern: '',
+          hidden: false,
           id: 'skfprint',
+          max: 100,
+          min: 10,
           name: 'fingerprint',
-          type: 'text',
-          required: true,
+          pattern: '^SHA256:',
           presentable: false,
-          unique: false,
-          options: {
-            min: 10,
-            max: 100,
-            pattern: '^SHA256:',
-          },
+          required: true,
+          system: false,
+          type: 'text',
         },
         {
-          system: false,
+          hidden: false,
           id: 'skallins',
           name: 'all_instances',
-          type: 'bool',
-          required: false,
           presentable: false,
-          unique: false,
-          options: {},
+          required: false,
+          system: false,
+          type: 'bool',
         },
         {
-          system: false,
+          hidden: false,
           id: 'skinstds',
           name: 'instances',
           type: 'relation',
           required: false,
           presentable: false,
-          unique: false,
-          options: {
-            collectionId: 'etae8tuiaxl6xfv',
-            cascadeDelete: false,
-            minSelect: null,
-            maxSelect: null,
-            displayFields: ['subdomain'],
-          },
+          system: false,
+          collectionId: 'etae8tuiaxl6xfv',
+          cascadeDelete: false,
+          minSelect: null,
+          maxSelect: null,
+          displayFields: ['subdomain'],
+        },
+        {
+          hidden: false,
+          id: 'autodate20001',
+          name: 'created',
+          onCreate: true,
+          onUpdate: false,
+          presentable: false,
+          system: false,
+          type: 'autodate',
+        },
+        {
+          hidden: false,
+          id: 'autodate20002',
+          name: 'updated',
+          onCreate: true,
+          onUpdate: true,
+          presentable: false,
+          system: false,
+          type: 'autodate',
         },
       ],
       indexes: [
@@ -104,15 +132,15 @@ migrate(
       createRule: '@request.auth.id != "" && user = @request.auth.id',
       updateRule: 'user = @request.auth.id',
       deleteRule: 'user = @request.auth.id',
-      options: {},
     })
 
-    return Dao(db).saveCollection(collection)
+    app.save(collection)
   },
-  (db) => {
-    const dao = new Dao(db)
-    const collection = dao.findCollectionByNameOrId('n4sshkeys9v1k2m')
-
-    return dao.deleteCollection(collection)
+  (app) => {
+    try {
+      app.delete(app.findCollectionByNameOrId('ssh_keys'))
+    } catch (e) {
+      // collection already gone
+    }
   }
 )

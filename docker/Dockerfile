@@ -41,7 +41,7 @@ FROM node:24-bookworm-slim
 
 ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update \
- && apt-get install -y --no-install-recommends ca-certificates curl bash tini procps unzip openssl \
+ && apt-get install -y --no-install-recommends ca-certificates curl bash tini procps unzip openssl sqlite3 \
  && rm -rf /var/lib/apt/lists/*
 
 # Docker CLI: the edge daemon also shells out to `docker` (container cleanup,
