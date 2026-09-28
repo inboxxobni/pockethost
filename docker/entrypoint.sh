@@ -32,6 +32,21 @@ trap cleanup EXIT INT TERM
 ###############################################################################
 mkdir -p "$PH_HOME_DIR" "$PH_HOME_DIR/data" "$PH_HOME_DIR/ssl"
 
+# The settings layer validates SSL_KEY/SSL_CERT at startup even when the in-stack
+# TLS terminator is not used (Coolify's proxy terminates TLS here). Provide a
+# wildcard self-signed pair so the paths resolve.
+if [ ! -f "$PH_HOME_DIR/ssl/tls.key" ] || [ ! -f "$PH_HOME_DIR/ssl/tls.cert" ]; then
+  APEX_FOR_CERT="${APEX_DOMAIN:-pockethost.local}"
+  if openssl req -x509 -newkey rsa:2048 -nodes -days 3650 \
+      -keyout "$PH_HOME_DIR/ssl/tls.key" -out "$PH_HOME_DIR/ssl/tls.cert" \
+      -subj "/CN=*.${APEX_FOR_CERT}" \
+      -addext "subjectAltName=DNS:*.${APEX_FOR_CERT},DNS:${APEX_FOR_CERT}" >/dev/null 2>&1; then
+    log "generated self-signed certificate for *.${APEX_FOR_CERT}"
+  else
+    log "WARN: could not generate the self-signed certificate"
+  fi
+fi
+
 if [ -d "$INSTANCE_APP_SRC" ]; then
   rm -rf "$PH_HOME_DIR/instance-app.new"
   mkdir -p "$PH_HOME_DIR/instance-app.new"

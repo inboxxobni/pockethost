@@ -48,6 +48,8 @@ services:
       MOTHERSHIP_ADMIN_USERNAME: webboxes.com@gmail.com
       MOTHERSHIP_ADMIN_PASSWORD: ${SERVICE_PASSWORD_MOTHERSHIP:-please-set-me}
       PH_SECRET: ${SERVICE_PASSWORD_PHSECRET:-please-set-me}
+      # Required by the settings layer (no default): the platform contact address.
+      TEST_EMAIL: webboxes.developer@gmail.com
 
       # Instances are spawned on the host daemon and reached through the docker
       # gateway; PocketBase version catalog for new instances.

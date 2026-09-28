@@ -41,7 +41,7 @@ FROM node:24-bookworm-slim
 
 ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update \
- && apt-get install -y --no-install-recommends ca-certificates curl bash tini procps unzip \
+ && apt-get install -y --no-install-recommends ca-certificates curl bash tini procps unzip openssl \
  && rm -rf /var/lib/apt/lists/*
 
 # Docker CLI: the edge daemon also shells out to `docker` (container cleanup,
@@ -50,7 +50,7 @@ COPY --from=docker:cli /usr/local/bin/docker /usr/local/bin/docker
 
 WORKDIR /app
 COPY --from=build /app /app
-RUN corepack enable
+RUN corepack enable && chmod +x /app/docker/entrypoint.sh
 
 ENV NODE_ENV=production \
     PH_HOME=/data/pockethost \
