@@ -19,11 +19,7 @@ migrate(
 
     app.save(collection)
 
-    app
-      .db()
-      .newQuery('UPDATE instances SET autoVacuum = {:v}')
-      .bind({ v: true })
-      .execute()
+    app.db().newQuery('UPDATE instances SET autoVacuum = {:v}').bind({ v: true }).execute()
   },
   (app) => {
     const collection = app.findCollectionByNameOrId('etae8tuiaxl6xfv')
