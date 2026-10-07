@@ -62,6 +62,9 @@ services:
       # Instances a fresh signup may run (this deployment has no billing; upstream grants 0 and then
       # refuses to start any instance for the owner).
       PH_SIGNUP_INSTANCE_QUOTA: ${PH_SIGNUP_INSTANCE_QUOTA:-1}
+      # No mailer here, so a signup cannot verify by email — verify it directly (upstream refuses
+      # to run an instance for an unverified owner).
+      PH_SIGNUP_AUTO_VERIFY: ${PH_SIGNUP_AUTO_VERIFY:-true}
 
       # Shared data root (host bind mount, same path inside and outside)
       PH_HOME: /data/pockethost

@@ -3602,6 +3602,13 @@ const HandleSignupConfirm = (e) => {
 			user.set("subscription_status", signupQuota > 0 ? "active" : "lapsed");
 			user.set("volume_storage_used", 0);
 			user.set("object_storage_used", 0);
+			if ((() => {
+				try {
+					return ($os.getenv("PH_SIGNUP_AUTO_VERIFY") ?? "true") !== "false";
+				} catch {
+					return true;
+				}
+			})()) user.set("verified", true);
 			user.setPassword(password);
 			txApp.save(user);
 		} catch (e) {
@@ -3628,7 +3635,7 @@ const HandleSignupConfirm = (e) => {
 			} catch {
 				return false;
 			}
-		})()) try {
+		})() && !autoVerify) try {
 			$mails.sendRecordVerification($app, user);
 		} catch (e) {
 			$app.logger().warn("Verification email could not be sent", "error", `${e}`, "email", email);

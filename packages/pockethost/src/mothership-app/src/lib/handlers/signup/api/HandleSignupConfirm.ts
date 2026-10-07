@@ -86,6 +86,18 @@ export const HandleSignupConfirm = (e: core.RequestEvent) => {
       user.set('subscription_status', signupQuota > 0 ? 'active' : 'lapsed')
       user.set('volume_storage_used', 0)
       user.set('object_storage_used', 0)
+      // An unverified owner cannot run an instance at all ("Log in at ... to verify your account"),
+      // and verification only happens through an email link. With no mailer configured nobody could
+      // ever verify, so this deployment verifies at signup instead. Set PH_SIGNUP_AUTO_VERIFY=false
+      // when a mailer is wired up and you want the real flow.
+      const autoVerify = (() => {
+        try {
+          return ($os.getenv('PH_SIGNUP_AUTO_VERIFY') ?? 'true') !== 'false'
+        } catch {
+          return true
+        }
+      })()
+      if (autoVerify) user.set('verified', true)
       user.setPassword(password)
       txApp.save(user)
     } catch (e) {
@@ -120,7 +132,7 @@ export const HandleSignupConfirm = (e: core.RequestEvent) => {
         return false
       }
     })()
-    if (mailerConfigured) {
+    if (mailerConfigured && !autoVerify) {
       try {
         $mails.sendRecordVerification($app, user)
       } catch (e) {
