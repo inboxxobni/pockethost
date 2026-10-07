@@ -1,4 +1,4 @@
-import { DOCKER_CONTAINER_HOST } from '@/constants'
+import { DOCKER_CONTAINER_HOST } from '@'
 
 // Address of a service running inside *this* container (the mothership, the edge daemon).
 export const mkInternalAddress = (port: number) => `127.0.0.1:${port}`
