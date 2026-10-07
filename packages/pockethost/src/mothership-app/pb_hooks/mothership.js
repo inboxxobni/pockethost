@@ -3613,7 +3613,18 @@ const HandleSignupConfirm = (e) => {
 			if (`${e}`.match(/ UNIQUE /)) throw error(`instanceName`, `exists`, `Instance name was taken, sorry about that. Try another.`);
 			throw error(`instanceName`, `fail`, `Could not create instance: ${e}`);
 		}
-		$mails.sendRecordVerification($app, user);
+		if ((() => {
+			try {
+				return !!$app.settings().smtp?.enabled;
+			} catch {
+				return false;
+			}
+		})()) try {
+			$mails.sendRecordVerification($app, user);
+		} catch (e) {
+			$app.logger().warn("Verification email could not be sent", "error", `${e}`, "email", email);
+		}
+		else $app.logger().info("Signup completed without a verification email: no mailer configured", "email", email);
 	});
 	return e.json(200, { status: "ok" });
 };
