@@ -1,6 +1,7 @@
 import {
   APEX_DOMAIN,
   createCleanupManager,
+  DOCKER_CONTAINER_HOST,
   DOCKER_INSTANCE_IMAGE_NAME,
   getContainerPortBinding,
   instanceContainerName,
@@ -14,7 +15,6 @@ import {
   LoggerService,
   mkContainerHomePath,
   mkInstanceDataPath,
-  mkInstanceUrl,
   mkSingleton,
   PH_CONTAINER_LAUNCH_WARN_MS,
   PH_CONTAINER_STOP_TIMEOUT_SEC,
@@ -105,7 +105,11 @@ const mkPocketbaseProcess = (
     cm.shutdown().catch(error)
   })
 
-  const url = mkInstanceUrl(container.portBinding)
+  // An instance container publishes its PocketBase port on the Docker host, so from inside this
+  // container it is reachable only through the host gateway. Loopback would be this container
+  // itself: the request would be answered by whatever else happens to listen on that port and
+  // every instance domain would look broken while the instance was perfectly healthy.
+  const url = `http://${DOCKER_CONTAINER_HOST()}:${container.portBinding}`
   logger.breadcrumb(url)
 
   const api: PocketbaseProcess = {
