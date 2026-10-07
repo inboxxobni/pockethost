@@ -3589,8 +3589,17 @@ const HandleSignupConfirm = (e) => {
 			user.set("username", username);
 			user.set("email", email);
 			user.set("subscription", "free");
-			user.set("subscription_quantity", 0);
-			user.set("subscription_status", "lapsed");
+			const signupQuota = (() => {
+				try {
+					const raw = $os.getenv("PH_SIGNUP_INSTANCE_QUOTA");
+					const parsed = raw ? parseInt(raw, 10) : NaN;
+					return Number.isFinite(parsed) && parsed >= 0 ? parsed : 1;
+				} catch {
+					return 1;
+				}
+			})();
+			user.set("subscription_quantity", signupQuota);
+			user.set("subscription_status", signupQuota > 0 ? "active" : "lapsed");
 			user.set("volume_storage_used", 0);
 			user.set("object_storage_used", 0);
 			user.setPassword(password);

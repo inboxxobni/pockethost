@@ -59,6 +59,9 @@ services:
       # amd64; override to run a locally built one instead.
       DOCKER_INSTANCE_IMAGE_NAME: ${DOCKER_INSTANCE_IMAGE_NAME:-webboxes/pockethost-instance:latest}
       PH_ALLOWED_POCKETBASE_SEMVER: "0.39.*"
+      # Instances a fresh signup may run (this deployment has no billing; upstream grants 0 and then
+      # refuses to start any instance for the owner).
+      PH_SIGNUP_INSTANCE_QUOTA: ${PH_SIGNUP_INSTANCE_QUOTA:-1}
 
       # Shared data root (host bind mount, same path inside and outside)
       PH_HOME: /data/pockethost
