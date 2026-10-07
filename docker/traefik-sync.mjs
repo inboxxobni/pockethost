@@ -76,7 +76,9 @@ const fetchInstanceHosts = async (token) => {
   return [
     ...new Set(
       (data.items || [])
-        .filter((item) => !item.dev && !item.suspension)
+        // dev is PocketBase's --dev mode, not a privacy flag, so a dev instance is still a public
+        // instance: excluding it here meant every self-service signup got an instance with no route.
+        .filter((item) => !item.suspension)
         .map((item) => ((item.cname || '').trim() || `${item.subdomain}.${APEX_DOMAIN}`).toLowerCase())
         .filter((host) => host.endsWith(`.${APEX_DOMAIN}`))
     ),

@@ -97,7 +97,25 @@ export const HandleSignupConfirm = (e: core.RequestEvent) => {
       throw error(`instanceName`, `fail`, `Could not create instance: ${e}`)
     }
 
-    $mails.sendRecordVerification($app, user)
+    // Best-effort: a verification email needs a configured mailer. With none, PocketBase falls
+    // back to a system `sendmail` that containers do not have — it blocks for ~50s and then
+    // throws, which used to abort the whole signup transaction. Accounts are usable either way.
+    const mailerConfigured = (() => {
+      try {
+        return !!$app.settings().smtp?.enabled
+      } catch {
+        return false
+      }
+    })()
+    if (mailerConfigured) {
+      try {
+        $mails.sendRecordVerification($app, user)
+      } catch (e) {
+        $app.logger().warn('Verification email could not be sent', 'error', `${e}`, 'email', email)
+      }
+    } else {
+      $app.logger().info('Signup completed without a verification email: no mailer configured', 'email', email)
+    }
   })
 
   return e.json(200, { status: 'ok' })
