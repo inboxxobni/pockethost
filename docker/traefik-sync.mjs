@@ -94,12 +94,6 @@ const renderYaml = (hosts) => {
     '        scheme: https',
     '        permanent: true',
     '  routers:',
-    '  services:',
-    '    pockethost-instances:',
-    '      loadBalancer:',
-    '        passHostHeader: true',
-    '        servers:',
-    `          - url: "http://${BACKEND_HOST}:${DAEMON_PORT}"`,
   ]
 
   hosts.forEach((host, index) => {
@@ -121,7 +115,40 @@ const renderYaml = (hosts) => {
     )
   })
 
+  // The backend service every router points at, declared *after* the routers. Emitting it before
+  // them put the routers inside `services:` — the file still loaded, `routers:` was empty, and every
+  // instance host answered 404 with a self-signed certificate. Order is the whole fix.
+  lines.push(
+    '  services:',
+    '    pockethost-instances:',
+    '      loadBalancer:',
+    '        passHostHeader: true',
+    '        servers:',
+    `          - url: "http://${BACKEND_HOST}:${DAEMON_PORT}"`
+  )
+
   return `${lines.join('\n')}\n`
+}
+
+/**
+ * Fail loudly if the routers are not where Traefik looks for them.
+ *
+ * This exact mistake shipped once and looked like "instances are unreachable" rather than like a
+ * config error, so the sync now checks its own output before declaring success: every expected host
+ * must appear between `routers:` and `services:`, and not after it.
+ */
+const assertRoutersPlacedCorrectly = (yaml, hosts) => {
+  const routersAt = yaml.indexOf('\n  routers:')
+  const servicesAt = yaml.indexOf('\n  services:')
+  if (routersAt === -1 || servicesAt === -1 || servicesAt < routersAt) {
+    throw new Error('rendered routes are malformed: routers/services sections are missing or swapped')
+  }
+  for (const host of hosts) {
+    const at = yaml.indexOf(`Host(\`${host}\`)`)
+    if (at === -1 || at < routersAt || at > servicesAt) {
+      throw new Error(`router for ${host} was emitted outside the routers section`)
+    }
+  }
 }
 
 const main = async () => {
@@ -141,6 +168,9 @@ const main = async () => {
       if (!token) token = await authenticate()
       const hosts = await fetchInstanceHosts(token)
       const yaml = renderYaml(hosts)
+      // Validate before writing: a malformed file must never replace a working one, and a bad render
+      // must surface as a sync error rather than as instance hosts mysteriously 404ing.
+      assertRoutersPlacedCorrectly(yaml, hosts)
 
       if (yaml !== lastWritten) {
         const target = `${DYNAMIC_DIR}/${DYNAMIC_FILE}`
