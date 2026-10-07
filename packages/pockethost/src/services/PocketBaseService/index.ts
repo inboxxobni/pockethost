@@ -14,7 +14,7 @@ import {
   LoggerService,
   mkContainerHomePath,
   mkInstanceDataPath,
-  mkInternalUrl,
+  mkInstanceUrl,
   mkSingleton,
   PH_CONTAINER_LAUNCH_WARN_MS,
   PH_CONTAINER_STOP_TIMEOUT_SEC,
@@ -105,7 +105,7 @@ const mkPocketbaseProcess = (
     cm.shutdown().catch(error)
   })
 
-  const url = mkInternalUrl(container.portBinding)
+  const url = mkInstanceUrl(container.portBinding)
   logger.breadcrumb(url)
 
   const api: PocketbaseProcess = {

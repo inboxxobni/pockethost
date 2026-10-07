@@ -54,7 +54,10 @@ services:
       # Instances are spawned on the host daemon and reached through the docker
       # gateway; PocketBase version catalog for new instances.
       DOCKER_CONTAINER_HOST: host.docker.internal
-      DOCKER_INSTANCE_IMAGE_NAME: benallfree/pockethost-instance
+      # Upstream's instance image is published for arm64 only, which dies with "exec format error"
+      # on x86_64 hosts and reads as "Could not launch container". This is the same image, built for
+      # amd64; override to run a locally built one instead.
+      DOCKER_INSTANCE_IMAGE_NAME: ${DOCKER_INSTANCE_IMAGE_NAME:-webboxes/pockethost-instance:latest}
       PH_ALLOWED_POCKETBASE_SEMVER: "0.39.*"
 
       # Shared data root (host bind mount, same path inside and outside)
