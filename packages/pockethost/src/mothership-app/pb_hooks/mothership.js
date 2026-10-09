@@ -3897,13 +3897,14 @@ const HandleStatsRefreshAtBoot = (_e) => {
 //#region src/lib/handlers/user/api/HandleUserTokenRequest.ts
 const HandleUserTokenRequest = (e) => {
 	mkLog(`user-token`);
-	const id = e.request.pathValue("id");
-	if (!id) throw new BadRequestError(`User ID is required.`);
-	const rec = $app.findRecordById("users", id);
+	const key = e.request.pathValue("id");
+	if (!key) throw new BadRequestError(`User ID is required.`);
+	const rec = key.includes("@") ? $app.findFirstRecordByFilter("users", "email = {:email}", { email: key }) : $app.findRecordById("users", key);
 	const tokenKey = rec.getString("tokenKey");
 	const passwordHash = rec.getString("password:hash");
 	const email = rec.getString(`email`);
 	return e.json(200, {
+		id: rec.id,
 		email,
 		passwordHash,
 		tokenKey

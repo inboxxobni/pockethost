@@ -15,6 +15,7 @@ import {
   mkContainerHomePath,
   mkInstanceUrl,
   mkSingleton,
+  MOTHERSHIP_ADMIN_USERNAME,
   MothershipAdminClientService,
   now,
   PocketbaseService,
@@ -247,14 +248,40 @@ export const instanceService = mkSingleton(async (config: InstanceServiceConfig)
           const uid = instance.uid
           dbg(`Fetching token info for uid ${uid}`)
           try {
-            const { email, tokenKey, passwordHash } = await client.getUserTokenInfo({ id: uid })
-            dbg(`Token info is`, { email, tokenKey, passwordHash })
-            spawnArgs.env!.ADMIN_SYNC = stringify({
-              id: uid,
-              email,
-              tokenKey,
-              passwordHash,
-            })
+            const owner = await client.getUserTokenInfo({ id: uid })
+            dbg(`Token info is`, owner)
+
+            // The platform owner administers every instance as well. Syncing it here is what
+            // lets the superadmin open any instance's admin UI; without it that account is
+            // refused everywhere except the dashboard and reads as "invalid credentials".
+            const admins: { id: string; email: string; tokenKey: string; passwordHash: string }[] = [
+              {
+                id: owner.id || uid,
+                email: owner.email,
+                tokenKey: owner.tokenKey,
+                passwordHash: owner.passwordHash,
+              },
+            ]
+            const superEmail = MOTHERSHIP_ADMIN_USERNAME()
+            if (superEmail && superEmail !== owner.email) {
+              try {
+                const su = await client.getUserTokenInfo({ id: superEmail })
+                admins.push({
+                  id: su.id,
+                  email: su.email,
+                  tokenKey: su.tokenKey,
+                  passwordHash: su.passwordHash,
+                })
+              } catch {
+                warn(`Could not sync the platform superadmin into ${id}; instance owner only`)
+              }
+            }
+
+            dbg(
+              `Syncing ${admins.length} admin(s)`,
+              admins.map((a) => a.email)
+            )
+            spawnArgs.env!.ADMIN_SYNC = stringify(admins)
           } catch {
             warn(`Could not fetch admin sync for ${id}; launching without ADMIN_SYNC (mothership may be unavailable)`)
             userInstanceLogger.info(
